@@ -27,12 +27,20 @@ jobs:
           mkdir -p "$temp"
           gh release download "$tag" --pattern 'qwenoft-robodojo-keyframes.zip' --dir "$temp"
           (cd "$temp" && echo '885a607dc0df944dbd2f5ec95d966c87a32263eba9ba1bfff8558b062f3df180  qwenoft-robodojo-keyframes.zip' | sha256sum -c)
-          if git ls-remote --exit-code --heads origin dojo-transfer-v1 >/dev/null; then
+          for attempt in $(seq 1 35); do
+            if gh release view "$tag" --json assets --jq '.assets[] | select((.state | ascii_downcase) == "uploaded") | .name' | grep -Fxq qwenoft-robodojo-videos.zip; then break; fi
+            if git ls-remote --exit-code --heads origin dojo-transfer-v1 >/dev/null; then break; fi
+            sleep 25
+          done
+          if gh release view "$tag" --json assets --jq '.assets[] | select((.state | ascii_downcase) == "uploaded") | .name' | grep -Fxq qwenoft-robodojo-videos.zip; then
+            gh release download "$tag" --pattern 'qwenoft-robodojo-videos.zip' --dir "$temp"
+            (cd "$temp" && echo 'da2e1bd235b64267aef657adf83c62ab8eba78a6887d06f11d2bd32a6869564e  qwenoft-robodojo-videos.zip' | sha256sum -c)
+          elif git ls-remote --exit-code --heads origin dojo-transfer-v1 >/dev/null; then
             git fetch -q --depth=1 origin refs/heads/dojo-transfer-v1
             git archive FETCH_HEAD chunks | tar -x -C "$temp"
             cat "$temp"/chunks/* > "$temp/qwenoft-robodojo-videos.zip"
             (cd "$temp" && echo 'da2e1bd235b64267aef657adf83c62ab8eba78a6887d06f11d2bd32a6869564e  qwenoft-robodojo-videos.zip' | sha256sum -c)
-            if ! gh release view "$tag" --json assets --jq '.assets[].name' | grep -Fxq qwenoft-robodojo-videos.zip; then
+            if ! gh release view "$tag" --json assets --jq '.assets[] | select((.state | ascii_downcase) == "uploaded") | .name' | grep -Fxq qwenoft-robodojo-videos.zip; then
               gh release upload "$tag" "$temp/qwenoft-robodojo-videos.zip"
             fi
           fi
