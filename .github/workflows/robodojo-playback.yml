@@ -38,7 +38,7 @@ jobs:
           elif git ls-remote --exit-code --heads origin dojo-transfer-v1 >/dev/null; then
             git fetch -q --depth=1 origin refs/heads/dojo-transfer-v1
             git archive FETCH_HEAD chunks | tar -x -C "$temp"
-            cat "$temp"/chunks/* > "$temp/qwenoft-robodojo-videos.zip"
+            find "$temp/chunks" -type f -print0 | sort -z | xargs -0 cat > "$temp/qwenoft-robodojo-videos.zip"
             (cd "$temp" && echo 'da2e1bd235b64267aef657adf83c62ab8eba78a6887d06f11d2bd32a6869564e  qwenoft-robodojo-videos.zip' | sha256sum -c)
             if ! gh release view "$tag" --json assets --jq '.assets[] | select((.state | ascii_downcase) == "uploaded") | .name' | grep -Fxq qwenoft-robodojo-videos.zip; then
               gh release upload "$tag" "$temp/qwenoft-robodojo-videos.zip"
