@@ -1,0 +1,37 @@
+name: Publish experiment pages
+on:
+  push:
+    branches: [main]
+    paths: ["index.html", "experiments/**"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: experiment-pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assemble static site
+        run: |
+          set -eu
+          mkdir site
+          cp index.html site/
+          cp -R experiments site/
+          curl -fL --retry 3 -o "$RUNNER_TEMP/atlas.zip" "https://github.com/LIHAOJUAN/failure-trajectory-collection-and-analysis/releases/download/qwenoft-robotwin-140k-v1/qwenoft-robotwin-140k.zip"
+          echo "69e8d64fb882135b8031a6169c3a69f75cf9e4936f9048ae4d25a83a0467ad97  $RUNNER_TEMP/atlas.zip" | sha256sum -c -
+          unzip -oq "$RUNNER_TEMP/atlas.zip" -d site/experiments/qwenoft-robotwin-140k
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: github-pages
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/deploy-pages@v4
