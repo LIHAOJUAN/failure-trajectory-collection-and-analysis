@@ -1,35 +1,56 @@
 name: Publish RoboDojo playback files
 on:
   workflow_dispatch:
-  release:
-    types: [published]
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/robodojo-playback.yml
+      - experiments/qwenoft-robodojo-100k/media.sha256
 permissions:
   contents: write
+concurrency:
+  group: robodojo-playback
+  cancel-in-progress: false
 jobs:
   publish:
-    if: github.event_name == 'workflow_dispatch' || github.event.release.tag_name == 'qwenoft-robodojo-100k-v1'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-      - name: Verify and publish the playback files
+      - name: Publish verified camera files
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
-          gh release download qwenoft-robodojo-100k-v1 --pattern 'qwenoft-robodojo-*.zip' --dir "$RUNNER_TEMP"
-          cd "$RUNNER_TEMP"
-          echo 'da2e1bd235b64267aef657adf83c62ab8eba78a6887d06f11d2bd32a6869564e  qwenoft-robodojo-videos.zip' | sha256sum -c
-          echo '885a607dc0df944dbd2f5ec95d966c87a32263eba9ba1bfff8558b062f3df180  qwenoft-robodojo-keyframes.zip' | sha256sum -c
-          cd "$GITHUB_WORKSPACE"
-          git switch --orphan robodojo-media-v1
-          unzip -q "$RUNNER_TEMP/qwenoft-robodojo-videos.zip"
-          unzip -q "$RUNNER_TEMP/qwenoft-robodojo-keyframes.zip"
-          test "$(find videos -name '*.mp4' | wc -l)" -eq 5127
+          tag=qwenoft-robodojo-100k-v1
+          destination=robodojo-media-v1
+          temp="$RUNNER_TEMP/robodojo"
+          mkdir -p "$temp"
+          gh release download "$tag" --pattern 'qwenoft-robodojo-keyframes.zip' --dir "$temp"
+          (cd "$temp" && echo '885a607dc0df944dbd2f5ec95d966c87a32263eba9ba1bfff8558b062f3df180  qwenoft-robodojo-keyframes.zip' | sha256sum -c)
+          if git ls-remote --exit-code --heads origin dojo-transfer-v1 >/dev/null; then
+            git fetch -q --depth=1 origin refs/heads/dojo-transfer-v1
+            git archive FETCH_HEAD chunks | tar -x -C "$temp"
+            cat "$temp"/chunks/* > "$temp/qwenoft-robodojo-videos.zip"
+            (cd "$temp" && echo 'da2e1bd235b64267aef657adf83c62ab8eba78a6887d06f11d2bd32a6869564e  qwenoft-robodojo-videos.zip' | sha256sum -c)
+            if ! gh release view "$tag" --json assets --jq '.assets[].name' | grep -Fxq qwenoft-robodojo-videos.zip; then
+              gh release upload "$tag" "$temp/qwenoft-robodojo-videos.zip"
+            fi
+          fi
+          if git ls-remote --exit-code --heads origin "$destination" >/dev/null; then
+            git fetch -q --depth=1 origin "$destination"
+            git switch -c "$destination" FETCH_HEAD
+          else
+            git switch --orphan "$destination"
+          fi
+          unzip -oq "$temp/qwenoft-robodojo-keyframes.zip"
           test "$(find frames/timeline -name '*.jpg' | wc -l)" -eq 1709
-          git config user.name github-actions
-          git config user.email github-actions@users.noreply.github.com
-          git add videos frames
-          git commit -qm 'Publish three synchronized views for each RoboDojo failure'
-          git push origin HEAD:refs/heads/robodojo-media-v1
+          git add frames
+          if test -f "$temp/qwenoft-robodojo-videos.zip"; then
+            unzip -oq "$temp/qwenoft-robodojo-videos.zip"
+            test "$(find videos -name '*.mp4' | wc -l)" -eq 5127
+            git add videos
+          fi
+          if ! git diff --cached --quiet; then
+            git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -qm 'Publish verified RoboDojo playback assets'
+            git push origin "HEAD:refs/heads/$destination"
+          fi
