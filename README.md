@@ -8,6 +8,7 @@
 | --- | --- | ---: | ---: | ---: | --- |
 | QwenOFT × RoboTwin | RoboTwin2-All · 140K | 10,000 | 8,807 | 1,193 | [打开全量分析](https://lihaojuan.github.io/failure-trajectory-collection-and-analysis/experiments/qwenoft-robotwin-140k/) |
 | QwenOFT × LIBERO | LIBERO 4-in-1 · 50K | 2,000 | 1,956 | 44 | [打开既有视频库](https://lihaojuan.github.io/libero-failure-trajectories/) |
+| QwenPI_v3 × LIBERO | 作者公开4-in-1 · JasonYang66 | 2,000 | 1,943 | 57 | [57条失败分析](https://lihaojuan.github.io/failure-trajectory-collection-and-analysis/experiments/qwenpiv3-libero-4in1/) |
 
 [下载 RoboTwin 完整离线包](https://github.com/LIHAOJUAN/failure-trajectory-collection-and-analysis/releases/tag/qwenoft-robotwin-140k-v1)，包含全部原片、关键帧及逐条标注。解压后可直接打开 index.html。
 
